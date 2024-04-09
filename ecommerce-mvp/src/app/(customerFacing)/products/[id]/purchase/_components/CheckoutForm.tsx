@@ -14,6 +14,7 @@ import { formatCurrency } from "@/lib/formatters"
 import {
   Elements,
   LinkAuthenticationElement,
+  AddressElement,
   PaymentElement,
   useElements,
   useStripe,
@@ -37,7 +38,10 @@ const stripePromise = loadStripe(
   process.env.NEXT_PUBLIC_STRIPE_PUBLIC_KEY as string
 )
 
+
 export function CheckoutForm({ product, clientSecret }: CheckoutFormProps) {
+  console.log(clientSecret)
+
   return (
     <div className="max-w-5xl w-full mx-auto space-y-8">
       <div className="flex gap-4 items-center">
@@ -59,9 +63,9 @@ export function CheckoutForm({ product, clientSecret }: CheckoutFormProps) {
           </div>
         </div>
       </div>
-      <Elements options={{ clientSecret }} stripe={stripePromise}>
+      {clientSecret && <Elements options={{ clientSecret }} stripe={stripePromise}>
         <Form priceInCents={product.priceInCents} productId={product.id} />
-      </Elements>
+      </Elements>}
     </div>
   )
 }
@@ -79,11 +83,24 @@ function Form({
   const [errorMessage, setErrorMessage] = useState<string>()
   const [email, setEmail] = useState<string>()
 
+  
   async function handleSubmit(e: FormEvent) {
-    e.preventDefault()
+    e.preventDefault()    
+    const addressElement = await elements?.getElement('address');
+    const {value}:any = await addressElement?.getValue();
+    
+    const name: string = value?.name
+    const addressData= {
+      line1: value.address.line1,
+      line2: value.address.line2,
+      city:value.address.city,
+      state:value.address.state,
+      postal_code:value.address.postal_code,
+      country:value.address.country,
+    }
+
 
     if (stripe == null || elements == null || email == null) return
-
     setIsLoading(true)
 
     const orderExists = await userOrderExists(email, productId)
@@ -101,13 +118,19 @@ function Form({
         elements,
         confirmParams: {
           return_url: `${process.env.NEXT_PUBLIC_SERVER_URL}/stripe/purchase-success`,
+          shipping:{
+            name: name,
+            address: addressData,
+          },
         },
       })
-      .then(({ error }) => {
-        if (error.type === "card_error" || error.type === "validation_error") {
-          setErrorMessage(error.message)
+      .then((result) => {
+        console.log(result);
+        
+        if (result.error && (result.error.type === "card_error" || result.error.type === "validation_error")) {
+          setErrorMessage(result.error.message);
         } else {
-          setErrorMessage("An unknown error occurred")
+          setErrorMessage("An unknown error occurred");
         }
       })
       .finally(() => setIsLoading(false))
@@ -126,6 +149,15 @@ function Form({
         </CardHeader>
         <CardContent>
           <PaymentElement />
+          <AddressElement options={{ 
+            mode: "shipping",
+        }} 
+        onChange={(event) => {
+              if (event.complete) {
+                // Extract potentially complete address
+                const address = event.value.address;
+              }
+            }}/>
           <div className="mt-4">
             <LinkAuthenticationElement
               onChange={e => setEmail(e.value.email)}

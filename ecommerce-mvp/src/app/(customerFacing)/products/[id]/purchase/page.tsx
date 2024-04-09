@@ -1,3 +1,5 @@
+//Server side code for stripe
+
 import db from "@/db/db"
 import { notFound } from "next/navigation"
 import Stripe from "stripe"
@@ -15,7 +17,9 @@ export default async function PurchasePage({
 
   const paymentIntent = await stripe.paymentIntents.create({
     amount: product.priceInCents,
-    currency: "USD",
+    currency: "usd",
+    description: "Software development services",
+    automatic_payment_methods: {enabled: true},
     metadata: { productId: product.id },
   })
 
