@@ -27,7 +27,7 @@ export async function addProduct(prevState: unknown, formData: FormData) {
   }
 
   const data = result.data
-
+//TODO : Switch fs module with S3
   await fs.mkdir("products", { recursive: true })
   const filePath = `products/${crypto.randomUUID()}-${data.file.name}`
   await fs.writeFile(filePath, Buffer.from(await data.file.arrayBuffer()))
